@@ -1,3 +1,5 @@
+Code for the TNNLS paper 'Non-intrusive Speech Quality Assessment Based on Deep Neural Networks for Speech Communication'
+
 ## Pre-training:
 ./run_aae_3t.sh --datadir xxx --stage 0 --tag daae_3t --id 0
 
