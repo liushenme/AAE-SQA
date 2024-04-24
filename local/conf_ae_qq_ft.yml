@@ -1,0 +1,23 @@
+# Filterbank config
+filterbank:
+  n_filters: 512  #Number of filters
+  kernel_size: 512 #window_size
+  stride: 256 #hop_length
+  sample_rate: 16000 
+# Training config
+training:
+  epochs: 50
+  batch_size: 64
+  num_workers: 6
+  half_lr: n
+  early_stop: n
+# Optim config
+optim:
+  optimizer: adam
+  lr: 0.00001
+#  weight_decay: 0.
+# Data config
+data:
+  #json_dir: dataset_own/WB_ACR/
+  json_dir: dataset_own/qq/
+  val_prop: 0.2
