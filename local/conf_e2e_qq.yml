@@ -1,0 +1,30 @@
+# Filterbank config
+filterbank:
+  n_filters: 512  #Number of filters
+  kernel_size: 512 #window_size
+  stride: 256 #hop_length
+  sample_rate: 16000 
+#  n_mels: 64
+#  fmin: 50
+# Network config
+masknet:
+  hidden_size: 500
+  rnn_type: gru
+  n_layers: 3
+  dropout: 0.3
+# Training config
+training:
+  epochs: 100
+  batch_size: 64
+  num_workers: 6
+  half_lr: n
+  early_stop: n
+# Optim config
+optim:
+  optimizer: adam
+  lr: 0.0001
+#  weight_decay: 0.
+# Data config
+data:
+  json_dir: dataset_own/qq/
+  val_prop: 0.2
