@@ -90,6 +90,66 @@ class Model_e2e(nn.Module):
         # Apply TF mask
         return mos
 
+class MOSNet(nn.Module):
+    def __init__(self, activation = nn.ReLU):
+        super(MOSNet, self).__init__()
+        self.mean_net_conv = nn.Sequential(
+            nn.Conv2d(in_channels = 1, out_channels = 16, kernel_size = (3,3), padding = (1,1)),
+            nn.Conv2d(in_channels = 16, out_channels = 16, kernel_size = (3,3), padding = (1,1)),
+            nn.Conv2d(in_channels = 16, out_channels = 16, kernel_size = (3,3), padding = (1,1), stride=(1,3)),
+            nn.Dropout(0.3),
+            nn.BatchNorm2d(16),
+            activation(),
+            nn.Conv2d(in_channels = 16, out_channels = 32, kernel_size = (3,3), padding = (1,1)),
+            nn.Conv2d(in_channels = 32, out_channels = 32, kernel_size = (3,3), padding = (1,1)),
+            nn.Conv2d(in_channels = 32, out_channels = 32, kernel_size = (3,3), padding = (1,1), stride=(1,3)),
+            nn.Dropout(0.3),
+            nn.BatchNorm2d(32),
+            activation(),
+            nn.Conv2d(in_channels = 32, out_channels = 64, kernel_size = (3,3), padding = (1,1)),
+            nn.Conv2d(in_channels = 64, out_channels = 64, kernel_size = (3,3), padding = (1,1)),
+            nn.Conv2d(in_channels = 64, out_channels = 64, kernel_size = (3,3), padding = (1,1), stride=(1,3)),
+            nn.Dropout(0.3),
+            nn.BatchNorm2d(64),
+            activation(),
+            nn.Conv2d(in_channels = 64, out_channels = 128, kernel_size = (3,3), padding = (1,1)),
+            nn.Conv2d(in_channels = 128, out_channels = 128, kernel_size = (3,3), padding = (1,1)),
+            nn.Conv2d(in_channels = 128, out_channels = 128, kernel_size = (3,3), padding = (1,1), stride=(1,3)),
+            nn.Dropout(0.3),
+            nn.BatchNorm2d(128),
+            activation()
+        )
+
+        self.mean_net_rnn = nn.LSTM(input_size = 512, hidden_size = 128, num_layers = 1, batch_first = True, bidirectional = True)
+        self.mean_net_dnn = nn.Sequential(
+            nn.Linear(256, 128),
+            activation(),
+            nn.Dropout(0.3),
+            nn.Linear(128,1),
+            activation()
+        )
+
+    def forward(self, spectrum):
+        #spectrum should have shape (batch, 1, time, 257)
+        spectrum = spectrum.transpose(1, 2)
+        spectrum = spectrum.unsqueeze(1)
+        batch = spectrum.shape[0]
+        time = spectrum.shape[2]
+        mean_feat = self.mean_net_conv(spectrum)
+        #print(mean_feat.shape)
+        mean_feat = mean_feat.permute(0, 2, 1, 3).contiguous()  # x becomes (batch, time, channel, frequency)
+        mean_feat = mean_feat.view((-1, mean_feat.size(1), mean_feat.size(2) * mean_feat.size(3)))
+        #mean_feat = mean_feat.view((batch, time, 256))
+        mean_feat, (h, c) = self.mean_net_rnn(mean_feat)
+        mean_feat = self.mean_net_dnn(mean_feat)
+        mean_feat = mean_feat.squeeze(-1)
+        mean_scores = torch.mean(mean_feat, dim = -1)
+        #return mean_scores, mean_feat
+        return mean_scores
+
+
+
+
 class Model_e2e_2input(nn.Module):
 
     def __init__(self, encoder, masker):
