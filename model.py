@@ -359,3 +359,77 @@ class cnn_lstm_4d_fu(nn.Module):
 
         return mean_scores, frame_scores
 
+class e2e_SimpleSystem(System):
+    def common_step(self, batch, batch_nb, train=True):                                                                         
+        #mixture, speech, _ = batch                                                                                             
+        mixture, mos, _ = batch
+        estimate  = self(mixture.unsqueeze(1))
+        #estimate, frame  = self(mixture.unsqueeze(1))                                                                          
+        # The loss function can be something like
+        # loss_func = partial(distance, is_complex=some_bool)                                                                   
+        #loss = self.loss_func(estimate, frame, mos)                                                                            
+        loss = self.loss_func(estimate, mos)
+        (p, _) = pearsonr(mos.data.cpu().numpy(), estimate.data.cpu().numpy())                                                  
+        #p = loss
+        #print("loss", loss)                                                                                                    
+        return loss, p                                                                                                          
+        #return loss                                                                                                            
+    
+    def training_step(self, batch, batch_nb):
+        loss, p = self.common_step(batch, batch_nb, train=True)                                                                 
+        self.log("loss", loss, logger=True)                                                                                     
+        return loss                                                                                                             
+    
+    def validation_step(self, batch, batch_nb):
+        loss, p = self.common_step(batch, batch_nb, train=False)                                                                
+        self.log("val_loss", loss, on_epoch=True, prog_bar=True)
+        self.log("val_pearsonr", p, on_epoch=True, prog_bar=True) 
+
+class daae_3t_SimpleSystem(System):
+    def common_step(self, batch, batch_nb, train=True):
+        mixture, target_score, _, target_spk, target_cla = batch
+        epoch = self.current_epoch
+        len_dataloader = 343
+        n_epoch = 100
+        p = float(batch_nb + epoch * len_dataloader) / n_epoch / len_dataloader
+        alpha = (2. / (1. + np.exp(-10 * p)) - 1) * 0.2
+        print("p", p)
+        recon, origin, _, pred_score, pred_spk, pred_cla  = self(mixture.unsqueeze(1), alpha)
+        #print(self.masker.mos_pred.weight)
+        #print(self.masker.spk_cla.weight)
+        # The loss function can be something like
+        # loss_func = partial(distance, is_complex=some_bool)
+        loss, loss_m = self.loss_func(recon, origin, pred_score, target_score, pred_spk, target_spk, pred_cla, target_cla)
+        return loss, loss_m
+
+    def training_step(self, batch, batch_nb):
+        loss, _  = self.common_step(batch, batch_nb, train=True)
+        self.log("loss", loss, logger=True)
+        return loss
+
+    def validation_step(self, batch, batch_nb):
+        loss, loss_m = self.common_step(batch, batch_nb, train=False)
+        self.log("val_loss", loss_m, on_epoch=True, prog_bar=True)
+
+class fu_SimpleSystem(System):
+    def common_step(self, batch, batch_nb, train=True):
+        #mixture, speech, _ = batch
+        mixture, mos, feat, _ = batch
+        estimate, frame_est  = self(mixture.unsqueeze(1), feat)
+        loss = self.loss_func(estimate, frame_est, mos)
+        (p, _) = pearsonr(mos.data.cpu().numpy().T, estimate.data.cpu().numpy().T)
+        #print("loss", loss)
+        #print(p1,p2)
+        #p = p1
+        return loss, p
+        #return loss
+
+    def training_step(self, batch, batch_nb):
+        loss, p = self.common_step(batch, batch_nb, train=True)
+        self.log("loss", loss, logger=True)
+        return loss
+
+    def validation_step(self, batch, batch_nb):
+        loss, p = self.common_step(batch, batch_nb, train=False)
+        self.log("val_loss", loss, on_epoch=True, prog_bar=True)
+        self.log("val_pearsonr", p, on_epoch=True, prog_bar=True)
